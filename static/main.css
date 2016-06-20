@@ -13,6 +13,8 @@ body {
 	font-family: 'BebasNeueBook', 'Raleway', 'Verdana', 'BebasNeueRegular';
 	color: #555;
   margin: 0;
+  border: 0;
+  text-align: center;
   background: #EEE;
 }
 
