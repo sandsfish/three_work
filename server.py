@@ -30,7 +30,12 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return '<h1>Python => Three.js</h1>'
+    # return '<h1>Python => Three.js</h1>'
+    return render_template('index.html')
+
+@app.route('/projects/<string:name>')
+def projects(name):
+	return render_template(name)
 
 if __name__ == '__main__':
     init()
