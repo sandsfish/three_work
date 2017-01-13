@@ -12,21 +12,21 @@
 
     <div id="container"></div>
 
-    <script src="bower_components/threejs/build/three.js"></script>
-    <script src="bower_components/threejs/examples/js/Detector.js"></script>
-    <script src="bower_components/threejs/examples/js/libs/stats.min.js"></script>
+    <script src="/static/bower_components/threejs/build/three.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/Detector.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/libs/stats.min.js"></script>
     
-    <script src="bower_components/threejs/examples/js/shaders/CopyShader.js"></script>
-    <script src="bower_components/threejs/examples/js/shaders/DotScreenShader.js"></script>
-    <script src="bower_components/threejs/examples/js/shaders/RGBShiftShader.js"></script>
-    <script src="bower_components/threejs/examples/js/shaders/BokehShader.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/shaders/CopyShader.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/shaders/DotScreenShader.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/shaders/RGBShiftShader.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/shaders/BokehShader.js"></script>
 
-    <script src="bower_components/threejs/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="bower_components/threejs/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="bower_components/threejs/examples/js/postprocessing/MaskPass.js"></script>
-    <script src="bower_components/threejs/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="bower_components/threejs/examples/js/postprocessing/BokehPass.js"></script>
-    <script type="text/javascript" src="dat.gui.min.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/postprocessing/MaskPass.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/postprocessing/BokehPass.js"></script>
+    <script type="text/javascript" src="/static/dat.gui.min.js"></script>
 
     <script type="text/javascript">
     
@@ -156,8 +156,9 @@
             var pMaterial = new THREE.PointCloudMaterial({
                   color: 0xFFFFFF,
                   size: 20,
+                  minFilter: THREE.NearestFilter,
                   map: THREE.ImageUtils.loadTexture(
-                    "images/particle.png"
+                    "/static/images/particle.png"
                     // "images/marquee_column_01.png"
                     // "images/antivj-omicron-01.jpg"
                     ),
