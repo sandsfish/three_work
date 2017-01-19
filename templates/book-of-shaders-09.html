@@ -15,6 +15,7 @@
         #endif
         
         uniform float amplitude;
+        uniform float deform_amt;
         attribute float displacement;
 
         // a shared variable for the VS and FS containing the normal
@@ -34,7 +35,7 @@
             //                    vec3(displacement *
             //                         amplitude);
 
-            vec3 newPosition = position + amplitude * normal * vec3( displacement ) * 2.5;
+            vec3 newPosition = position + amplitude * normal * vec3( displacement ) * deform_amt;
             // vec3 newPosition = vec3(position.x + amplitude * normal * displacement.x  * 5., 1.0, 1.0);
 
             gl_Position = projectionMatrix *
@@ -52,28 +53,60 @@
         uniform vec2 u_mouse;
         uniform vec2 u_resolution;
         uniform float u_time;
+        uniform int check_value;
 
         varying vec3 vNormal;
 
+        #define PI 3.14159265359
+
+        float plot(vec2 st, float pct){
+            return  smoothstep( pct-0.01, pct, st.y) - 
+            smoothstep( pct, pct+0.01, st.y);
+        }
+
         void main() {
-            // calc the dot product and clamp
-            // 0 -> 1 rather than -1 -> 1
-            vec3 light = vec3(0.5, 0.2, 1.0);
+            // calc the dot product and clamp 0 -> 1 rather than -1 -> 1
+            float color_cycle_speed = 0.1;
+            
+            // FIXME: values jump all at once on a cycle. why is this happening? 
+            // (when values from sin() go from positive to negative, the light jumps sides)
+            // sin does this but cos doesn't. ¯\_(ツ)_/¯
+            //vec3 light = vec3(abs(sin(u_time*0.4)), abs(sin(u_time*0.4)), abs(sin(u_time*0.4)));
+            vec3 light = vec3( cos(u_time*0.09*PI), cos(u_time*0.1*PI), cos(u_time*0.11*PI) );
+
+            vec2 st = gl_FragCoord.xy/u_resolution.xy;
 
             // ensure it's normalized
             light = normalize(light);
 
-            // calculate the dot product of
-            // the light to the vertex normal
+            // calculate the dot product of the light to the vertex normal
             float dProd = max(0.0, dot(vNormal, light));
 
-            // feed into our frag colour
-            gl_FragColor = vec4(dProd, // R
-                                dProd, // G
-                                dProd, // B
-                                1.0);  // A
+            vec4 color1 = vec4(sin(st.x*u_time*dProd), // R
+                                sin(st.y*u_time*dProd), // G
+                                sin(st.x*u_time*dProd), // B
+                                1.0);
+            
+            vec4 color2 = vec4(abs(cos(st.y*u_time*dProd)), // R
+                                abs(cos(st.x*u_time*dProd)), // G
+                                abs(cos((st.y*u_time)/2.*dProd)), // B
+                                1.0);
 
-            // gl_FragColor=vec4(1.0,1.0,1.0,1.0);
+            vec4 blue = vec4(0.2, 0.4, 1.0, 1.0);
+            vec4 purple = vec4(0.6, 0.0, 1.0, 1.0);
+            vec4 gold = vec4(0.9568, 0.8196, 0.2588, 1.0);
+            float mix_amt = clamp(abs(sin(u_time*color_cycle_speed)), 0.4, 1.0);
+
+            // vec4 color = mix(purple*color2*dProd, gold*color2*dProd, mix_amt);
+            vec4 color = vec4(smoothstep(0.0,1.0, abs(sin(u_time*0.1)))*dProd, smoothstep(0.0,1.0, abs(sin(u_time*0.18)))*dProd, smoothstep(0.0,1.0, abs(sin(u_time*0.09)))*dProd, 1.0);
+
+            gl_FragColor = color*dProd;
+
+            // Paint the bottom half of the object with the mix amount value
+            if(st.y < 0.5 && check_value == 1) {
+                gl_FragColor = vec4(mix_amt, mix_amt, mix_amt, 1.0);
+            }
+
         }
     </script>
     <script>
@@ -85,8 +118,10 @@
         var controls;
 
         var userOpts = {
-            displacement: 30
-        }
+            displacement: 30,
+            valueCheckToggle: true,
+            deform_amt: 2.5
+        };
 
         init();
         animate();
@@ -102,10 +137,9 @@
 
             scene = new THREE.Scene();
 
-           // build the GUI 
+           // Build the GUI and specify function to update values on change
             buildGui(userOpts, function(opts){
-                // console.log("userOpts", userOpts)
-                userOpts.displacement = opts.displacement;
+                uniforms.deform_amt.value = opts.deform_amt;
             });
 
 
@@ -127,7 +161,9 @@
                 u_time: { type: "f", value: 1.0 },
                 u_resolution: { type: "v2", value: new THREE.Vector2() },
                 u_mouse: { type: "v2", value: new THREE.Vector2() },
-                amplitude: { type: 'f', value: 0 } // a float
+                amplitude: { type: 'f', value: 0 }, // a float
+                check_value: { type: 'i', value: 0 },
+                deform_amt: { type: 'f', value: 2.5 }
             };
 
             var attributes = {
@@ -148,7 +184,7 @@
 // SPHERE SETUP
 
             // set up the sphere vars
-            var radius = 50,
+            var radius = 100,
                 segments = 32,
                 rings = 16;
 
@@ -244,18 +280,28 @@
             renderer.render( scene, camera );
         }
 
+        function toggleValueCheck() {
+            if(uniforms.check_value.value == 1) {
+                uniforms.check_value.value = 0;
+            }
+            else {
+                uniforms.check_value.value = 1;
+            }
+        }
+
         // # Build gui with dat.gui
         function buildGui(options, callback)
         {
             // create and initialize the UI
             var gui = new dat.GUI({ height  : 4 * 32 - 1 });
+            
             // the callback notified on UI change
             var change  = function(){
                 callback(options)
             }
-            gui.add(options, 'displacement').name('Displacement').min(1).max(500)    .onChange(change);
-            // gui.add(options, 'duration').name('Duration (ms)').min(100).max(4000)   .onChange(change);
-            // gui.add(options, 'delay').name('Delay (ms)').min(0).max(1000)       .onChange(change);
+
+            gui.add(options, 'deform_amt').name('Deform Amount').min(0.1).max(30.0).onChange(change);
+            gui.add(options,'valueCheckToggle').name('Check Mix Value').onChange(toggleValueCheck);
             // gui.add(options, 'easing').name('Easing Curve').options(easings)    .onChange(change);
             // gui.add(options, 'changeColor').name('Change Color To Green');
         }
