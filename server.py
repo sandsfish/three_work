@@ -28,10 +28,10 @@ def init():
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
+# @app.route('/')
+# def index():
     # return '<h1>Python => Three.js</h1>'
-    return render_template('index.html')
+    # return render_template('index.html')
 
 @app.route('/projects/<path:name>')
 def projects(name):
