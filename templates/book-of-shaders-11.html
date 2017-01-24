@@ -42,7 +42,10 @@
             //                         amplitude);
 
             //vec3 newPosition = position + amplitude * normal * vec3( displacement ) * deform_amt;
-            vec3 newPosition = position + amplitude * normal * vec3( sin(displacement*u_time*7.5), sin(displacement*u_time), sin(displacement*u_time*1.2)) * deform_amt;
+            // vec3 newPosition = position + amplitude * normal * vec3( cos(displacement*u_time*7.5), sin(displacement*u_time), mod(displacement*u_time*1.2, 1.0)) * deform_amt;
+
+            vec3 newPosition = position + amplitude * normal * vec3( abs(sin(displacement)*5.0), 1.0, mod(displacement*u_time*1.2, 1.0)*10.0 ) * deform_amt;
+            // vec3 newPosition = position + amplitude * normal * vec3( sin(displacement)*5.0, 1.0, sin(displacement*u_time*10.0 )) * deform_amt;
 
             // float amount = 1.2;
             // float amountPerDegree = 10.;
@@ -166,10 +169,10 @@
             container = document.getElementById( 'container' );
 
             scene = new THREE.Scene();
-            // scene.fog = new THREE.Fog( 0xBFBFBF, 2, 15 );
+            scene.fog = new THREE.Fog( 0xBFBFBF, 2, 15 );
 
             renderer = new THREE.WebGLRenderer( { antialias: true } );
-            // renderer.setClearColor( scene.fog.color );
+            renderer.setClearColor( scene.fog.color );
             renderer.setPixelRatio( window.devicePixelRatio );
             // renderer.gammaInput = true;
             // renderer.gammaOutput = true;
@@ -221,9 +224,10 @@
 // SPHERE SETUP
 
             // set up the sphere vars
+            var SPHERE_MULTIPLIER = 1;
             var radius = 100,
-                segments = 32,
-                rings = 16;
+                segments = 32*SPHERE_MULTIPLIER,
+                rings = 16*SPHERE_MULTIPLIER;
 
             // create the sphere's material
             // var sphereMaterial =
@@ -278,6 +282,7 @@
             // add to the scene
             scene.add(pointLight);
 
+            // These don't apply to geometry that already have their surface painted by a shader
             var ambient = new THREE.AmbientLight( 0x101030 );
             scene.add( ambient );
 
@@ -357,6 +362,9 @@
             uniforms.u_time.value += 0.05;
             uniforms.amplitude.value = Math.sin(frame);
             frame += 0.01;
+
+            // TODO: To Output Frames To A Video Server Collecting Frames
+            // console.log(document.querySelector('canvas').toDataURL());
 
             renderer.render( scene, camera );
         }
