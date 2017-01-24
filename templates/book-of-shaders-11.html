@@ -5,6 +5,9 @@
     <div id="container"></div>
     <script src="/static/bower_components/threejs/build/three.js"></script>
     <script src="/static/bower_components/threejs/examples/js/Detector.js"></script>
+    <!-- <script src="/static/bower_components/threejs/examples/js/loaders/STLLoader.js"></script> -->
+    <script src="/static/bower_components/threejs/examples/js/loaders/OBJLoader.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/loaders/MTLLoader.js"></script>
     <script src="/static/bower_components/threejs/examples/js/controls/OrbitControls.js"></script>
     <script src="/static/bower_components/dat.gui/dat.gui.js"></script>
 
@@ -14,9 +17,12 @@
         precision highp float;
         #endif
         
+        uniform float u_time;
         uniform float amplitude;
         uniform float deform_amt;
         attribute float displacement;
+
+        #define PI 3.14159265359
 
         // a shared variable for the VS and FS containing the normal
         varying vec3 vNormal;
@@ -35,8 +41,17 @@
             //                    vec3(displacement *
             //                         amplitude);
 
-            vec3 newPosition = position + amplitude * normal * vec3( displacement ) * deform_amt;
-            // vec3 newPosition = vec3(position.x + amplitude * normal * displacement.x  * 5., 1.0, 1.0);
+            //vec3 newPosition = position + amplitude * normal * vec3( displacement ) * deform_amt;
+            vec3 newPosition = position + amplitude * normal * vec3( sin(displacement*u_time*7.5), sin(displacement*u_time), sin(displacement*u_time*1.2)) * deform_amt;
+
+            // float amount = 1.2;
+            // float amountPerDegree = 10.;
+            // float i = position.x;
+            // float angle = i / 180.0 * PI;
+            // float radius = 1.0 + floor(i / amount * amountPerDegree) / amountPerDegree;
+
+            // vec3 pos = vec3(sin(angle) * radius, cos(angle) * radius, cos(angle) * radius*2.);
+
 
             gl_Position = projectionMatrix *
                           modelViewMatrix *
@@ -58,51 +73,70 @@
         varying vec3 vNormal;
 
         #define PI 3.14159265359
+        #define TWO_PI 6.28318530718
 
         float plot(vec2 st, float pct){
             return  smoothstep( pct-0.01, pct, st.y) - 
             smoothstep( pct, pct+0.01, st.y);
         }
 
-        void main() {
-            // calc the dot product and clamp 0 -> 1 rather than -1 -> 1
-            float color_cycle_speed = 0.1;
-            
-            // FIXME: values jump all at once on a cycle. why is this happening? 
-            // (when values from sin() go from positive to negative, the light jumps sides)
-            // sin does this but cos doesn't. ¯\_(ツ)_/¯
-            //vec3 light = vec3(abs(sin(u_time*0.4)), abs(sin(u_time*0.4)), abs(sin(u_time*0.4)));
-            vec3 light = vec3( cos(u_time*0.09*PI), cos(u_time*0.1*PI), cos(u_time*0.11*PI) );
+        //  Function from Iñigo Quiles 
+        //  https://www.shadertoy.com/view/MsS3Wc
+        vec3 hsb2rgb( in vec3 c ){
+            vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),
+                                     6.0)-3.0)-1.0, 
+                             0.0, 
+                             1.0 );
+            rgb = rgb*rgb*(3.0-2.0*rgb);
+            return c.z * mix( vec3(1.0), rgb, c.y);
+        }
 
+        void main() {
+            float color_cycle_speed = 0.1;
             vec2 st = gl_FragCoord.xy/u_resolution.xy;
 
-            // ensure it's normalized
+            // position light source ensure it's normalized
+            vec3 light = vec3(0.5, 0.2, 1.0);
             light = normalize(light);
 
             // calculate the dot product of the light to the vertex normal
             float dProd = max(0.0, dot(vNormal, light));
 
-            vec4 color1 = vec4(sin(st.x*u_time*dProd),
-                                sin(st.y*u_time*dProd),
-                                sin(st.x*u_time*dProd),
+            // define colors, both dynamic and static
+            vec4 color1 = vec4(sin(st.x*u_time*dProd), // R
+                                sin(st.y*u_time*dProd), // G
+                                sin(st.x*u_time*dProd), // B
                                 1.0);
             
-            vec4 color2 = vec4(abs(cos(st.y*u_time*dProd)),
-                                abs(cos(st.x*u_time*dProd)),
-                                abs(cos((st.y*u_time)/2.*dProd)),
+            vec4 color2 = vec4(abs(cos(st.y*u_time*dProd)), // R
+                                abs(cos(st.x*u_time*dProd)), // G
+                                abs(cos((st.y*u_time)/2.*dProd)), // B
                                 1.0);
 
             vec4 blue = vec4(0.2, 0.4, 1.0, 1.0);
             vec4 purple = vec4(0.6, 0.0, 1.0, 1.0);
             vec4 gold = vec4(0.9568, 0.8196, 0.2588, 1.0);
+            
+
             float mix_amt = clamp(abs(sin(u_time*color_cycle_speed)), 0.4, 1.0);
 
-            // vec4 color = mix(purple*color2*dProd, gold*color2*dProd, mix_amt);
-            vec4 color = vec4(smoothstep(0.0,1.0, abs(sin(u_time*0.1)))*dProd, smoothstep(0.0,1.0, abs(sin(u_time*0.18)))*dProd, smoothstep(0.0,1.0, abs(sin(u_time*0.09)))*dProd, 1.0);
+            vec4 color = vec4(smoothstep(0.0,1.0, abs(sin(u_time*0.1)))*dProd, 
+                              smoothstep(0.0,1.0, abs(sin(u_time*0.18)))*dProd, 
+                              smoothstep(0.0,1.0, abs(sin(u_time*0.09)))*dProd, 
+                              1.0);
 
+            // HSB Polar Coordinates
+            vec2 toCenter = vec2(0.5)-st;
+            float angle = atan(toCenter.y,toCenter.x);
+            vec3 angleMapped = vec3((angle/TWO_PI)+0.5);
+            float radius = length(toCenter)*2.0;
+
+            color = vec4(hsb2rgb(vec3((angle/TWO_PI)+0.5,radius,1.0)), 1.0);
+
+            // set color and make sure it takes into account the directional light
             gl_FragColor = color*dProd;
 
-            // Paint the bottom half of the object with the mix amount value
+            // Paint the bottom half of the object with the mix amount value if enabled
             if(st.y < 0.5 && check_value == 1) {
                 gl_FragColor = vec4(mix_amt, mix_amt, mix_amt, 1.0);
             }
@@ -131,11 +165,15 @@
 // SCENE & RENDER SETUP
             container = document.getElementById( 'container' );
 
-            renderer = new THREE.WebGLRenderer();
-            renderer.setPixelRatio( window.devicePixelRatio );
-            container.appendChild( renderer.domElement );
-
             scene = new THREE.Scene();
+            // scene.fog = new THREE.Fog( 0xBFBFBF, 2, 15 );
+
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            // renderer.setClearColor( scene.fog.color );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            // renderer.gammaInput = true;
+            // renderer.gammaOutput = true;
+            container.appendChild( renderer.domElement );
 
            // Build the GUI and specify function to update values on change
             buildGui(userOpts, function(opts){
@@ -175,7 +213,6 @@
 
             var material = new THREE.ShaderMaterial( {
                 uniforms: uniforms,
-                // attributes: attributes,
                 vertexShader: document.getElementById( 'vertexShader' ).textContent,
                 fragmentShader: document.getElementById( 'fragmentShader' ).textContent
             } );
@@ -239,7 +276,51 @@
             pointLight.position.z = 130;
 
             // add to the scene
-            // scene.add(pointLight);
+            scene.add(pointLight);
+
+            var ambient = new THREE.AmbientLight( 0x101030 );
+            scene.add( ambient );
+
+
+
+
+// MTL/OBJ Loader
+            // var onProgress = function () { };
+            // var onError = function () { console.log('Error loading OBJ...'); };
+            // var material = new THREE.ShaderMaterial( { 
+            //     color: 'yellow', 
+            //     side: THREE.DoubleSide,
+            //     vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            //     fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+            // });
+
+            // var mtlLoader = new THREE.MTLLoader();
+            //     mtlLoader.setPath( '../static/' );
+            //     mtlLoader.load( 'curve.mtl', function( materials ) {
+
+            //         materials.preload();
+
+            //         var objLoader = new THREE.OBJLoader();
+            //         // objLoader.setMaterials( materials );
+            //         objLoader.setPath( '../static/' );
+            //         objLoader.load( 'curve.obj', function ( object ) {
+
+            //             object.traverse(function (child) {
+
+            //                 if (child instanceof THREE.Mesh) {
+            //                     child.material = material;
+            //                 }
+
+            //             });
+
+            //             object.position.y = - 95;
+            //             scene.add( object );
+
+            //         }, onProgress, onError );
+
+            //     });
+
+
 
 
 // NAV SETUP
@@ -289,6 +370,7 @@
             }
         }
 
+// CONTROLS SETUP
         // # Build gui with dat.gui
         function buildGui(options, callback)
         {
