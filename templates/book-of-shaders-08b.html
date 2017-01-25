@@ -5,9 +5,6 @@
     <div id="container"></div>
     <script src="/static/bower_components/threejs/build/three.js"></script>
     <script src="/static/bower_components/threejs/examples/js/Detector.js"></script>
-    <!-- <script src="/static/bower_components/threejs/examples/js/loaders/STLLoader.js"></script> -->
-    <script src="/static/bower_components/threejs/examples/js/loaders/OBJLoader.js"></script>
-    <script src="/static/bower_components/threejs/examples/js/loaders/MTLLoader.js"></script>
     <script src="/static/bower_components/threejs/examples/js/controls/OrbitControls.js"></script>
     <script src="/static/bower_components/dat.gui/dat.gui.js"></script>
 
@@ -17,12 +14,9 @@
         precision highp float;
         #endif
         
-        uniform float u_time;
         uniform float amplitude;
         uniform float deform_amt;
         attribute float displacement;
-
-        #define PI 3.14159265359
 
         // a shared variable for the VS and FS containing the normal
         varying vec3 vNormal;
@@ -41,20 +35,8 @@
             //                    vec3(displacement *
             //                         amplitude);
 
-            //vec3 newPosition = position + amplitude * normal * vec3( displacement ) * deform_amt;
-            // vec3 newPosition = position + amplitude * normal * vec3( cos(displacement*u_time*7.5), sin(displacement*u_time), mod(displacement*u_time*1.2, 1.0)) * deform_amt;
-
-            vec3 newPosition = position + amplitude * normal * vec3( abs(sin(displacement)*5.0), 1.0, mod(displacement*u_time*1.2, 1.0)*10.0 ) * deform_amt;
-            // vec3 newPosition = position + amplitude * normal * vec3( sin(displacement)*5.0, 1.0, sin(displacement*u_time*10.0 )) * deform_amt;
-
-            // float amount = 1.2;
-            // float amountPerDegree = 10.;
-            // float i = position.x;
-            // float angle = i / 180.0 * PI;
-            // float radius = 1.0 + floor(i / amount * amountPerDegree) / amountPerDegree;
-
-            // vec3 pos = vec3(sin(angle) * radius, cos(angle) * radius, cos(angle) * radius*2.);
-
+            vec3 newPosition = position + amplitude * normal * vec3( displacement ) * deform_amt;
+            // vec3 newPosition = vec3(position.x + amplitude * normal * displacement.x  * 5., 1.0, 1.0);
 
             gl_Position = projectionMatrix *
                           modelViewMatrix *
@@ -68,6 +50,14 @@
         precision highp float;
         #endif
 
+// CAN WE ENABLE GL MODES FROM THIS SHADER?  (not like this apparently)
+        // glEnable( GL_BLEND );
+        // glBlendFunc( GL_ZERO, GL_SRC_COLOR );
+ 
+            // draw texture
+ 
+        // glDisable( GL_BLEND );
+
         uniform vec2 u_mouse;
         uniform vec2 u_resolution;
         uniform float u_time;
@@ -75,37 +65,18 @@
 
         varying vec3 vNormal;
 
-        #define PI 3.14159265359
-        #define TWO_PI 6.28318530718
-
-        float plot(vec2 st, float pct){
-            return  smoothstep( pct-0.01, pct, st.y) - 
-            smoothstep( pct, pct+0.01, st.y);
-        }
-
-        //  Function from Iñigo Quiles 
-        //  https://www.shadertoy.com/view/MsS3Wc
-        vec3 hsb2rgb( in vec3 c ){
-            vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),
-                                     6.0)-3.0)-1.0, 
-                             0.0, 
-                             1.0 );
-            rgb = rgb*rgb*(3.0-2.0*rgb);
-            return c.z * mix( vec3(1.0), rgb, c.y);
-        }
-
         void main() {
+            // calc the dot product and clamp 0 -> 1 rather than -1 -> 1
             float color_cycle_speed = 0.1;
+            vec3 light = vec3(0.5, 0.2, 1.0);
             vec2 st = gl_FragCoord.xy/u_resolution.xy;
 
-            // position light source ensure it's normalized
-            vec3 light = vec3(0.5, 0.2, 1.0);
+            // ensure it's normalized
             light = normalize(light);
 
             // calculate the dot product of the light to the vertex normal
             float dProd = max(0.0, dot(vNormal, light));
 
-            // define colors, both dynamic and static
             vec4 color1 = vec4(sin(st.x*u_time*dProd), // R
                                 sin(st.y*u_time*dProd), // G
                                 sin(st.x*u_time*dProd), // B
@@ -119,27 +90,12 @@
             vec4 blue = vec4(0.2, 0.4, 1.0, 1.0);
             vec4 purple = vec4(0.6, 0.0, 1.0, 1.0);
             vec4 gold = vec4(0.9568, 0.8196, 0.2588, 1.0);
-            
-
             float mix_amt = clamp(abs(sin(u_time*color_cycle_speed)), 0.4, 1.0);
 
-            vec4 color = vec4(smoothstep(0.0,1.0, abs(sin(u_time*0.1)))*dProd, 
-                              smoothstep(0.0,1.0, abs(sin(u_time*0.18)))*dProd, 
-                              smoothstep(0.0,1.0, abs(sin(u_time*0.09)))*dProd, 
-                              1.0);
+            vec4 color = mix(purple*color2*dProd, gold*color2*dProd, mix_amt);
 
-            // HSB Polar Coordinates
-            vec2 toCenter = vec2(0.5)-st;
-            float angle = atan(toCenter.y,toCenter.x);
-            vec3 angleMapped = vec3((angle/TWO_PI)+0.5);
-            float radius = length(toCenter)*2.0;
+            gl_FragColor = color;
 
-            color = vec4(hsb2rgb(vec3((angle/TWO_PI)+0.5,radius,1.0)), 1.0);
-
-            // set color and make sure it takes into account the directional light
-            gl_FragColor = color*dProd;
-
-            // Paint the bottom half of the object with the mix amount value if enabled
             if(st.y < 0.5 && check_value == 1) {
                 gl_FragColor = vec4(mix_amt, mix_amt, mix_amt, 1.0);
             }
@@ -153,6 +109,7 @@
         var camera, scene, renderer;
         var uniforms;
         var controls;
+        // var sphere, sphereGeo, shaderMaterial;
 
         var userOpts = {
             displacement: 30,
@@ -168,15 +125,11 @@
 // SCENE & RENDER SETUP
             container = document.getElementById( 'container' );
 
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog( 0xBFBFBF, 2, 15 );
-
             renderer = new THREE.WebGLRenderer( { antialias: true } );
-            renderer.setClearColor( scene.fog.color );
             renderer.setPixelRatio( window.devicePixelRatio );
-            // renderer.gammaInput = true;
-            // renderer.gammaOutput = true;
             container.appendChild( renderer.domElement );
+
+            scene = new THREE.Scene();
 
            // Build the GUI and specify function to update values on change
             buildGui(userOpts, function(opts){
@@ -192,9 +145,11 @@
                 FAR = 10000;
 
             camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+            // var camera = new THREE.PerspectiveCamera( 70, 1, 1, 1100 ); // This is like, totally broken.
             
             // the camera starts at 0,0,0 so pull it back
-            camera.position.z = 500;
+            // camera.position.z = 500;
+            camera.position.z = 1;
 
 
 // SHADER SETUP
@@ -216,6 +171,7 @@
 
             var material = new THREE.ShaderMaterial( {
                 uniforms: uniforms,
+                // attributes: attributes,
                 vertexShader: document.getElementById( 'vertexShader' ).textContent,
                 fragmentShader: document.getElementById( 'fragmentShader' ).textContent
             } );
@@ -224,10 +180,9 @@
 // SPHERE SETUP
 
             // set up the sphere vars
-            var SPHERE_MULTIPLIER = 2;
             var radius = 100,
-                segments = 16*SPHERE_MULTIPLIER,
-                rings = 8*SPHERE_MULTIPLIER;
+                segments = 32,
+                rings = 16;
 
             // create the sphere's material
             // var sphereMaterial =
@@ -240,9 +195,13 @@
             // create the sphere's material
             var shaderMaterial = new THREE.ShaderMaterial({
                 uniforms:       uniforms,
-                wireframe: true,
                 vertexShader: document.getElementById( 'vertexShader' ).textContent,
-                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+                // blending: 0.3,
+                // lights: true,
+                skinning: true,
+                transparent: true,
+                // wireframe: true
             });
 
             // Apparently you need to use BufferGeometry to pass attributes to shaders now.
@@ -271,6 +230,21 @@
             scene.add(sphere);
 
 
+// BACKGROUND GEOMETRY SETUP
+
+            var geometry = new THREE.PlaneBufferGeometry( 2000, 2000 );
+
+            var material = new THREE.ShaderMaterial( {
+                uniforms: uniforms,
+                vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+            } );
+        
+            var mesh = new THREE.Mesh( geometry, material );
+            scene.add( mesh );
+
+
+
 // LIGHT SETUP
             // create a point light
             var pointLight = new THREE.PointLight(0xFFFFFF);
@@ -281,52 +255,7 @@
             pointLight.position.z = 130;
 
             // add to the scene
-            scene.add(pointLight);
-
-            // These don't apply to geometry that already have their surface painted by a shader
-            var ambient = new THREE.AmbientLight( 0x101030 );
-            scene.add( ambient );
-
-
-
-
-// MTL/OBJ Loader
-            // var onProgress = function () { };
-            // var onError = function () { console.log('Error loading OBJ...'); };
-            // var material = new THREE.ShaderMaterial( { 
-            //     color: 'yellow', 
-            //     side: THREE.DoubleSide,
-            //     vertexShader: document.getElementById( 'vertexShader' ).textContent,
-            //     fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-            // });
-
-            // var mtlLoader = new THREE.MTLLoader();
-            //     mtlLoader.setPath( '../static/' );
-            //     mtlLoader.load( 'curve.mtl', function( materials ) {
-
-            //         materials.preload();
-
-            //         var objLoader = new THREE.OBJLoader();
-            //         // objLoader.setMaterials( materials );
-            //         objLoader.setPath( '../static/' );
-            //         objLoader.load( 'curve.obj', function ( object ) {
-
-            //             object.traverse(function (child) {
-
-            //                 if (child instanceof THREE.Mesh) {
-            //                     child.material = material;
-            //                 }
-
-            //             });
-
-            //             object.position.y = - 95;
-            //             scene.add( object );
-
-            //         }, onProgress, onError );
-
-            //     });
-
-
+            // scene.add(pointLight);
 
 
 // NAV SETUP
@@ -351,8 +280,17 @@
             uniforms.u_mouse.value.y = event.pageY;
         }
 
+        // var SPEED = 0.01;
+
+        // function rotateSphere() {
+        //     sphere.rotation.x -= SPEED;
+        //     sphere.rotation.y -= SPEED;
+        //     sphere.rotation.z -= SPEED;
+        // }
+
         function animate() {
             requestAnimationFrame( animate );
+            // rotateSphere();
             render();
         }
         
@@ -364,9 +302,6 @@
             uniforms.amplitude.value = Math.sin(frame);
             frame += 0.01;
 
-            // TODO: To Output Frames To A Video Server Collecting Frames
-            // console.log(document.querySelector('canvas').toDataURL());
-
             renderer.render( scene, camera );
         }
 
@@ -377,9 +312,10 @@
             else {
                 uniforms.check_value.value = 1;
             }
+
+            console.log('Toggled: ' + uniforms.check_value);
         }
 
-// CONTROLS SETUP
         // # Build gui with dat.gui
         function buildGui(options, callback)
         {
