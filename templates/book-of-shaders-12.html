@@ -1,3 +1,59 @@
+
+
+<!-- TODO: Generate many spheres and place them randomly, in preparation for placing them purposely using data -->
+<!-- http://learningthreejs.com/data/performance-merging-geometry/ -->
+
+<!-- 
+            function generateCube(nCubes, doMerge, generated){
+                var geometry    = new THREE.CubeGeometry( 50, 50, 50 );
+                var material    = new THREE.MeshNormalMaterial();
+                var mesh    = new THREE.Mesh( geometry, material );
+
+                document.getElementById("generationMsg").innerHTML  = (nCubes-generated)+ " cubes to generate";
+
+                for ( var i = 0; i < 1000 && nCubes > generated; i++, generated++ ) {
+
+                    if( !doMerge ){
+                        mesh    = new THREE.Mesh( geometry, material );
+                    }
+                    mesh.position.x = Math.random() * 3000 - 1500;
+                    mesh.position.y = Math.random() * 3000 - 1500;
+                    mesh.position.z = Math.random() * 3000 - 1500;
+                    mesh.rotation.x = Math.random() * 360 * ( Math.PI / 180 );
+                    mesh.rotation.y = Math.random() * 360 * ( Math.PI / 180 );
+                    
+                    if( doMerge ){
+                        THREE.GeometryUtils.merge(mergedGeo, mesh);
+                    }else{
+                        mesh.matrixAutoUpdate = false;
+                        mesh.updateMatrix();
+                        group.addChild( mesh ); 
+                    }
+                
+                }
+                if( nCubes !== generated){
+                    setTimeout(function(){  generateCube(nCubes, doMerge, generated);   }, 0)
+                    
+                }
+
+                if( nCubes === generated ){
+                    document.getElementById("generationMsg").innerHTML  = generated+ " cubes generated";
+
+                    if( doMerge ){
+                        mergedGeo.computeFaceNormals();
+                        group   = new THREE.Mesh( mergedGeo, material );
+                        group.matrixAutoUpdate = false;
+                        group.updateMatrix();
+                    }
+    
+                    scene.addObject( group );                   
+                }
+            }
+ -->
+
+ <!-- Also Try KeyboardState -->
+ <!-- var keyboard = new THREEx.KeyboardState(); -->
+
 <body>
     <head>
         <link rel="stylesheet" type="text/css" href="/static/main.css">
@@ -153,11 +209,6 @@
         var camera, scene, renderer;
         var uniforms;
         var controls;
-        
-        // var jsonString = '{{ data|safe }}';
-        // console.log(jsonString);
-        // var dataFromServer = JSON.parse(jsonString);
-        var dataFromServer = {{ data|tojson }};
 
         var userOpts = {
             displacement: 30,
@@ -167,17 +218,6 @@
 
         init();
         animate();
-
-        function createSphere(radius, material) {
-            var SPHERE_MULTIPLIER = 2;
-            var segments = 16*SPHERE_MULTIPLIER,
-                rings = 8*SPHERE_MULTIPLIER;
-
-            var geometry = new THREE.SphereBufferGeometry( radius, segments, rings );
-            var sphere = new THREE.Mesh( geometry, material );
-            return sphere;
-        }
-
 
         function init() {
 
@@ -256,7 +296,7 @@
             // create the sphere's material
             var shaderMaterial = new THREE.ShaderMaterial({
                 uniforms:       uniforms,
-                wireframe: false,
+                wireframe: true,
                 vertexShader: document.getElementById( 'vertexShader' ).textContent,
                 fragmentShader: document.getElementById( 'fragmentShader' ).textContent
             });
@@ -264,7 +304,6 @@
             // Apparently you need to use BufferGeometry to pass attributes to shaders now.
             // https://stackoverflow.com/questions/25491068/three-js-buffergeometry-for-spheres
             // constructor: radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength
-
             var sphereGeo = new THREE.SphereBufferGeometry( radius, segments, rings ); //r72
 
 
@@ -287,18 +326,6 @@
             // add the sphere to the scene
             scene.add(sphere);
 
-            var data_list = dataFromServer['media'];
-            console.log(data_list.length);
-
-            for(var i = 0; i < data_list.length; i++) {
-                var item = data_list[i];
-                console.log(item['media_inlink_count']);
-                var s = createSphere(item['media_inlink_count'], shaderMaterial);
-                s.position.x = Math.random() * 1000;
-                s.position.y = Math.random() * 1000;
-                s.position.z = Math.random() * 1000;
-                scene.add( s );
-            }
 
 // LIGHT SETUP
             // create a point light
