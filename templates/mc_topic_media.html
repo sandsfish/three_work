@@ -9,6 +9,11 @@
     <script src="/static/bower_components/threejs/examples/js/loaders/OBJLoader.js"></script>
     <script src="/static/bower_components/threejs/examples/js/loaders/MTLLoader.js"></script>
     <script src="/static/bower_components/threejs/examples/js/controls/OrbitControls.js"></script>
+
+<script src="/static/bower_components/threejs/examples/js/EffectsComposer.js"></script>
+<script src="/static/bower_components/threejs/examples/js/UnrealBloomPass.js"></script>
+
+    <!-- <script src="/static/bower_components/threejs/libs/stats.min.js"></script> -->
     <script src="/static/bower_components/dat.gui/dat.gui.js"></script>
 
     <script id="vertexShader" type="x-shader/x-vertex">
@@ -28,37 +33,12 @@
         varying vec3 vNormal;
 
         void main() {
-            // set the vNormal value with
-            // the attribute value passed
-            // in by Three.js
+            // set the vNormal value with the attribute value passed in by Three.js
             vNormal = normal;
-
-            // multiply our displacement by the
-            // amplitude. The amp will get animated
-            // so we'll have animated displacement
-            // vec3 newPosition = position + 
-            //                    normal * 
-            //                    vec3(displacement *
-            //                         amplitude);
-
-            //vec3 newPosition = position + amplitude * normal * vec3( displacement ) * deform_amt;
-            // vec3 newPosition = position + amplitude * normal * vec3( cos(displacement*u_time*7.5), sin(displacement*u_time), mod(displacement*u_time*1.2, 1.0)) * deform_amt;
-
-            vec3 newPosition = position + amplitude * normal * vec3( abs(sin(displacement)*5.0), 1.0, mod(displacement*u_time*1.2, 1.0)*10.0 ) * deform_amt;
-            // vec3 newPosition = position + amplitude * normal * vec3( sin(displacement)*5.0, 1.0, sin(displacement*u_time*10.0 )) * deform_amt;
-
-            // float amount = 1.2;
-            // float amountPerDegree = 10.;
-            // float i = position.x;
-            // float angle = i / 180.0 * PI;
-            // float radius = 1.0 + floor(i / amount * amountPerDegree) / amountPerDegree;
-
-            // vec3 pos = vec3(sin(angle) * radius, cos(angle) * radius, cos(angle) * radius*2.);
-
 
             gl_Position = projectionMatrix *
                           modelViewMatrix *
-                          vec4(newPosition, 1.0);
+                          vec4(position, 1.0);
 
             // gl_Position = vec4( position, 1.0 );
         }
@@ -105,43 +85,18 @@
             // calculate the dot product of the light to the vertex normal
             float dProd = max(0.0, dot(vNormal, light));
 
-            // define colors, both dynamic and static
-            vec4 color1 = vec4(sin(st.x*u_time*dProd), // R
-                                sin(st.y*u_time*dProd), // G
-                                sin(st.x*u_time*dProd), // B
-                                1.0);
-            
-            vec4 color2 = vec4(abs(cos(st.y*u_time*dProd)), // R
-                                abs(cos(st.x*u_time*dProd)), // G
-                                abs(cos((st.y*u_time)/2.*dProd)), // B
-                                1.0);
-
             vec4 blue = vec4(0.2, 0.4, 1.0, 1.0);
             vec4 purple = vec4(0.6, 0.0, 1.0, 1.0);
             vec4 gold = vec4(0.9568, 0.8196, 0.2588, 1.0);
-            
 
-            float mix_amt = clamp(abs(sin(u_time*color_cycle_speed)), 0.4, 1.0);
-
-            vec4 color = vec4(smoothstep(0.0,1.0, abs(sin(u_time*0.1)))*dProd, 
-                              smoothstep(0.0,1.0, abs(sin(u_time*0.18)))*dProd, 
-                              smoothstep(0.0,1.0, abs(sin(u_time*0.09)))*dProd, 
-                              1.0);
-
-            // HSB Polar Coordinates
-            vec2 toCenter = vec2(0.5)-st;
-            float angle = atan(toCenter.y,toCenter.x);
-            vec3 angleMapped = vec3((angle/TWO_PI)+0.5);
-            float radius = length(toCenter)*2.0;
-
-            color = vec4(hsb2rgb(vec3((angle/TWO_PI)+0.5,radius,1.0)), 1.0);
+            vec4 color = gold;
 
             // set color and make sure it takes into account the directional light
-            gl_FragColor = color*dProd;
+            gl_FragColor = color;
 
             // Paint the bottom half of the object with the mix amount value if enabled
             if(st.y < 0.5 && check_value == 1) {
-                gl_FragColor = vec4(mix_amt, mix_amt, mix_amt, 1.0);
+                gl_FragColor = vec4(color.rgb, 1.0);
             }
 
         }
@@ -168,11 +123,13 @@
         init();
         animate();
 
-        function createSphere(radius, material) {
+        function createSphere(radius) {
             var SPHERE_MULTIPLIER = 2;
             var segments = 16*SPHERE_MULTIPLIER,
                 rings = 8*SPHERE_MULTIPLIER;
-
+            var material = new THREE.MeshPhongMaterial( {
+                color: 0x2194CE
+            } );
             var geometry = new THREE.SphereBufferGeometry( radius, segments, rings );
             var sphere = new THREE.Mesh( geometry, material );
             return sphere;
@@ -185,10 +142,10 @@
             container = document.getElementById( 'container' );
 
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog( 0xBFBFBF, 2, 15 );
+            // scene.fog = new THREE.Fog( 0xBFBFBF, 2, 15 );
 
-            renderer = new THREE.WebGLRenderer( { antialias: true } );
-            renderer.setClearColor( scene.fog.color );
+            renderer = new THREE.WebGLRenderer( { alpha: true, antialias: true } );
+            // renderer.setClearColor( scene.fog.color );
             renderer.setPixelRatio( window.devicePixelRatio );
             // renderer.gammaInput = true;
             // renderer.gammaOutput = true;
@@ -205,7 +162,7 @@
             var VIEW_ANGLE = 45,
                 ASPECT = window.innerWidth / window.innerHeight,
                 NEAR = 0.1,
-                FAR = 10000;
+                FAR = 100000;
 
             camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
             
@@ -230,12 +187,6 @@
                 }
             };
 
-            var material = new THREE.ShaderMaterial( {
-                uniforms: uniforms,
-                vertexShader: document.getElementById( 'vertexShader' ).textContent,
-                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-            } );
-
 
 // SPHERE SETUP
 
@@ -256,7 +207,7 @@
             // create the sphere's material
             var shaderMaterial = new THREE.ShaderMaterial({
                 uniforms:       uniforms,
-                wireframe: false,
+                wireframe: true,
                 vertexShader: document.getElementById( 'vertexShader' ).textContent,
                 fragmentShader: document.getElementById( 'fragmentShader' ).textContent
             });
@@ -269,6 +220,8 @@
 
 
 // SPHERE GEOMETRY SETUP FOR VERTEX SHADER
+
+    // TODO: This should be the sun, if we're sticking with the metaphor. Should be bigger than the largest planet, and glowing.
 
             // now populate the array of attributes
             var vertices = sphereGeo.attributes.position;
@@ -284,21 +237,205 @@
               sphereGeo,
               shaderMaterial);
 
+            // sphere.drawMode = THREE.TrianglesDrawMode;
+
             // add the sphere to the scene
             scene.add(sphere);
 
+
+
+// Create Spheres From Media Cloud Data Dynamically
+
+            // Parent for orbits
+            parent = new THREE.Object3D();
+            parent.name = 'orbitParent';
+            scene.add( parent );
+
             var data_list = dataFromServer['media'];
-            console.log(data_list.length);
+            // console.log(data_list.length);
+
+            // FIXME: How do I get to a specific one of these in the future to modify them?
 
             for(var i = 0; i < data_list.length; i++) {
                 var item = data_list[i];
-                console.log(item['media_inlink_count']);
-                var s = createSphere(item['media_inlink_count'], shaderMaterial);
+                // console.log(item['media_inlink_count']);
+
+                // Rotation method from:
+                // https://stackoverflow.com/questions/15214582/how-do-i-rotate-some-moons-around-a-planet-with-three-js
+                var pivot = new THREE.Object3D();
+                pivot.rotation.z = Math.random()*2 * Math.PI / 3;
+                pivot.rotation.y = Math.random()*4 * Math.PI / 3;
+                pivot.rotation.x = Math.random()*6 * Math.PI / 3;
+                parent.add( pivot );
+
+                var s = createSphere(item['media_inlink_count']);
                 s.position.x = Math.random() * 1000;
                 s.position.y = Math.random() * 1000;
                 s.position.z = Math.random() * 1000;
-                scene.add( s );
+                s.name = 's' + i;
+                
+                pivot.add( s );
+                // scene.add( s );
+
+                
+
+                
+
+
+
+
+
+
+
+
             }
+
+// pivot1.rotation.z = 0;
+// pivot2.rotation.z = 2 * Math.PI / 3;
+// pivot3.rotation.z = 4 * Math.PI / 3;
+
+// https://threejs.org/examples/webgl_geometry_text.html#00D2FF000
+// 
+
+        var text = "media cloud",
+        fontName = "optimer", // helvetiker, optimer, gentilis, droid sans, droid serif
+        fontWeight = "normal"; // normal bold
+        height = 20,
+        size = 70,
+        hover = 30,
+        font = undefined;
+
+        function loadFont() {
+
+            var loader = new THREE.FontLoader();
+            loader.load( 'fonts/' + fontName + '_' + fontWeight + '.typeface.json', function ( response ) {
+
+                font = response;
+
+                refreshText();
+
+            } );
+
+        }
+
+        function createText() {
+
+            textGeo = new THREE.TextGeometry( text, {
+
+                font: font,
+
+                size: size,
+                height: height,
+                curveSegments: curveSegments,
+
+                bevelThickness: bevelThickness,
+                bevelSize: bevelSize,
+                bevelEnabled: bevelEnabled,
+
+                material: 0,
+                extrudeMaterial: 1
+
+            });
+
+            textGeo.computeBoundingBox();
+            textGeo.computeVertexNormals();
+
+            // "fix" side normals by removing z-component of normals for side faces
+            // (this doesn't work well for beveled geometry as then we lose nice curvature around z-axis)
+
+            if ( ! bevelEnabled ) {
+
+                var triangleAreaHeuristics = 0.1 * ( height * size );
+
+                for ( var i = 0; i < textGeo.faces.length; i ++ ) {
+
+                    var face = textGeo.faces[ i ];
+
+                    if ( face.materialIndex == 1 ) {
+
+                        for ( var j = 0; j < face.vertexNormals.length; j ++ ) {
+
+                            face.vertexNormals[ j ].z = 0;
+                            face.vertexNormals[ j ].normalize();
+
+                        }
+
+                        var va = textGeo.vertices[ face.a ];
+                        var vb = textGeo.vertices[ face.b ];
+                        var vc = textGeo.vertices[ face.c ];
+
+                        var s = THREE.GeometryUtils.triangleArea( va, vb, vc );
+
+                        if ( s > triangleAreaHeuristics ) {
+
+                            for ( var j = 0; j < face.vertexNormals.length; j ++ ) {
+
+                                face.vertexNormals[ j ].copy( face.normal );
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+            var centerOffset = -0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
+
+            textMesh1 = new THREE.Mesh( textGeo, material );
+
+            textMesh1.position.x = centerOffset;
+            textMesh1.position.y = hover;
+            textMesh1.position.z = 0;
+
+            textMesh1.rotation.x = 0;
+            textMesh1.rotation.y = Math.PI * 2;
+
+            group.add( textMesh1 );
+
+            if ( mirror ) {
+
+                textMesh2 = new THREE.Mesh( textGeo, material );
+
+                textMesh2.position.x = centerOffset;
+                textMesh2.position.y = -hover;
+                textMesh2.position.z = height;
+
+                textMesh2.rotation.x = Math.PI;
+                textMesh2.rotation.y = Math.PI * 2;
+
+                group.add( textMesh2 );
+
+            }
+
+        }
+
+        function refreshText() {
+
+            updatePermalink();
+
+            group.remove( textMesh1 );
+            if ( mirror ) group.remove( textMesh2 );
+
+            if ( !text ) return;
+
+            createText();
+
+        }
+
+
+// UNIVERSE SETUP
+            // create the geometry sphere
+            var geometry  = new THREE.SphereGeometry(radius*100, segments, rings)
+            // create the material, using a texture of startfield
+            var starMaterial  = new THREE.MeshBasicMaterial()
+            starMaterial.map   = THREE.ImageUtils.loadTexture('/static/images/galaxy_starfield.png')
+            starMaterial.side  = THREE.BackSide
+            // create the mesh based on geometry and material
+            var starMesh  = new THREE.Mesh(geometry, starMaterial)
+            scene.add(starMesh)
 
 // LIGHT SETUP
             // create a point light
@@ -360,6 +497,15 @@
 
 // NAV SETUP
             controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.1;
+
+            // controls.constraint.smoothZoom = true;
+            // controls.constraint.zoomDampingFactor = 0.2;
+            // controls.constraint.smoothZoomSpeed = 5.0;
+            // controls.autoRotate = true;
+            // stats = new Stats();
+            // container.appendChild( stats.dom );
 
 
 // EVENT LISTENER SETUP
@@ -373,6 +519,9 @@
             renderer.setSize( window.innerWidth, window.innerHeight );
             uniforms.u_resolution.value.x = renderer.domElement.width;
             uniforms.u_resolution.value.y = renderer.domElement.height;
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
         }
 
         function onMouseMove( event ) {        
@@ -386,12 +535,29 @@
         }
         
         var frame = 0;
-        
+
         function render() {
+
+            // If damping is enabled you must call controls.update() in render
+            controls.update();
 
             uniforms.u_time.value += 0.05;
             uniforms.amplitude.value = Math.sin(frame);
             frame += 0.01;
+
+            scene.traverse (function (object)
+            {
+                // if (object instanceof THREE.Mesh)
+                // {
+                    if (object.name === 'orbitParent') {
+                        object.traverse(function(object) {
+                            // object.rotation.y -= Math.sin(Math.random()*0.05);
+                            object.rotation.y -= 0.01;
+                        })
+                    }
+
+                // }
+            });
 
             // TODO: To Output Frames To A Video Server Collecting Frames
             // console.log(document.querySelector('canvas').toDataURL());
