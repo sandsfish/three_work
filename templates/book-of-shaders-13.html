@@ -284,7 +284,7 @@
 
             // material.map = THREE.ImageUtils.loadTexture('/static/images/earthmap1k.jpg')
             earthMaterial.bumpMap    = THREE.ImageUtils.loadTexture('/static/images/earthbump1k.jpg')
-            earthMaterial.bumpScale = 0.05
+            earthMaterial.bumpScale = 0.3 //0.05
             earthMaterial.specularMap    = THREE.ImageUtils.loadTexture('/static/images/earthspec1k.jpg')
             earthMaterial.specular  = new THREE.Color('grey')
             var earthMesh = new THREE.Mesh(geometry, earthMaterial)
