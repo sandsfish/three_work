@@ -1,0 +1,301 @@
+<body>
+    <head>
+        <link rel="stylesheet" type="text/css" href="/static/main.css">
+    </head>
+    <div id="container"></div>
+    <script src="/static/bower_components/threejs/build/three.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/Detector.js"></script>
+    <script src="/static/bower_components/threejs/examples/js/controls/OrbitControls.js"></script>
+    <script src="/static/bower_components/dat.gui/dat.gui.js"></script>
+
+    <script id="vertexShader" type="x-shader/x-vertex">
+        // switch on high precision floats
+        #ifdef GL_ES
+        precision highp float;
+        #endif
+        
+        uniform float amplitude;
+        attribute float displacement;
+
+        // a shared variable for the VS and FS containing the normal
+        varying vec3 vNormal;
+
+        void main() {
+            // set the vNormal value with
+            // the attribute value passed
+            // in by Three.js
+            vNormal = normal;
+
+            // multiply our displacement by the
+            // amplitude. The amp will get animated
+            // so we'll have animated displacement
+            // vec3 newPosition = position + 
+            //                    normal * 
+            //                    vec3(displacement *
+            //                         amplitude);
+
+            vec3 newPosition = position + amplitude * normal * vec3( displacement ) * 2.5;
+            // vec3 newPosition = vec3(position.x + amplitude * normal * displacement.x  * 5., 1.0, 1.0);
+
+            gl_Position = projectionMatrix *
+                          modelViewMatrix *
+                          vec4(newPosition, 1.0);
+
+            // gl_Position = vec4( position, 1.0 );
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        #ifdef GL_ES
+        precision highp float;
+        #endif
+
+        uniform vec2 u_mouse;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+
+        varying vec3 vNormal;
+
+        highp float rand(vec2 co)
+        {
+            highp float a = 12.9898;
+            highp float b = 78.233;
+            highp float c = 43758.5453;
+            highp float dt= dot(co.xy ,vec2(a,b));
+            highp float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            
+            vec2 st = gl_FragCoord.xy/u_resolution.xy;
+            vec2 m = u_mouse.xy/u_resolution.xy;
+
+            // calc the dot product and clamp
+            // 0 -> 1 rather than -1 -> 1
+            vec3 light = vec3(
+                                0.5, 
+                                1.0, 
+                                cos(u_time*0.9));
+
+            vec3 light2 = vec3(
+                                abs(tan(u_time/0.1)), 
+                                0.8, 
+                                sin(u_time)*0.1);
+
+
+
+            // ensure it's normalized
+            light = normalize(light);
+            light2 = normalize(light2); // FIXME: Array and loop processing immediately.
+
+            // calculate the dot product of
+            // the light to the vertex normal
+            float dProd = max(0.0, dot(vNormal, light));
+            float dProd2 = max(0.0, dot(vNormal, light2));
+
+            vec4 pass1 = vec4(dProd, // R
+                                dProd, // G
+                                dProd, // B
+                                1.0);  // A
+
+            vec4 pass2 = vec4(dProd2, // R
+                                0, // G
+                                0, // B
+                                1.0);  // A
+
+            // A white dot matrix a la Ash Thorpe data viz
+            if(mod(st.x, 0.1) == 0.0) {
+                gl_FragColor = vec4(1.0);
+            }
+
+            // feed into our frag colour
+            gl_FragColor = pass1 + pass2;  // A
+
+            // gl_FragColor=vec4(1.0,1.0,1.0,1.0);
+        }
+    </script>
+    <script>
+        if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+        var container;
+        var camera, scene, renderer;
+        var uniforms;
+        var controls;
+
+        var userOpts = {
+            displacement: 30
+        }
+
+        init();
+        animate();
+
+        function init() {
+
+// SCENE & RENDER SETUP
+            container = document.getElementById( 'container' );
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio( window.devicePixelRatio );
+            container.appendChild( renderer.domElement );
+
+            scene = new THREE.Scene();
+
+           // build the GUI 
+            buildGui(userOpts, function(opts){
+                // console.log("userOpts", userOpts)
+                userOpts.displacement = opts.displacement;
+            });
+
+
+// CAMERA SETUP
+            // set some camera attributes
+            var VIEW_ANGLE = 45,
+                ASPECT = window.innerWidth / window.innerHeight,
+                NEAR = 0.1,
+                FAR = 10000;
+
+            camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+            
+            // the camera starts at 0,0,0 so pull it back
+            camera.position.z = 500;
+
+
+// SHADER SETUP
+            uniforms = {
+                u_time: { type: "f", value: 1.0 },
+                u_resolution: { type: "v2", value: new THREE.Vector2() },
+                u_mouse: { type: "v2", value: new THREE.Vector2() },
+                amplitude: { type: 'f', value: 0 } // a float
+            };
+
+            var attributes = {
+                displacement: {
+                    type: 'f', // a float
+                    value: [] // an empty array
+                }
+            };
+
+            var material = new THREE.ShaderMaterial( {
+                uniforms: uniforms,
+                // attributes: attributes,
+                vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+            } );
+
+
+// SPHERE SETUP
+
+            // set up the sphere vars
+            var radius = 50,
+                segments = 32,
+                rings = 16;
+
+            // create the sphere's material
+            // var sphereMaterial =
+            //   new THREE.MeshLambertMaterial(
+            //     {
+            //       color: 0x0055CC,
+            //       wireframe: true
+            //     });
+
+            // create the sphere's material
+            var shaderMaterial = new THREE.ShaderMaterial({
+                uniforms:       uniforms,
+                vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+            });
+
+            // Apparently you need to use BufferGeometry to pass attributes to shaders now.
+            // https://stackoverflow.com/questions/25491068/three-js-buffergeometry-for-spheres
+            // constructor: radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength
+            var sphereGeo = new THREE.SphereBufferGeometry( radius, segments, rings ); //r72
+
+
+// SPHERE GEOMETRY SETUP FOR VERTEX SHADER
+
+            // now populate the array of attributes
+            var vertices = sphereGeo.attributes.position;
+            var values = attributes.displacement.value;
+
+            for(var v = 0; v < vertices.length; v++) {
+                values.push(Math.random() * 30);
+            }
+
+            sphereGeo.addAttribute( 'displacement', new THREE.BufferAttribute( new Float32Array(values), 1 ) );
+
+            var sphere = new THREE.Mesh(
+              sphereGeo,
+              shaderMaterial);
+
+            // add the sphere to the scene
+            scene.add(sphere);
+
+
+// LIGHT SETUP
+            // create a point light
+            var pointLight = new THREE.PointLight(0xFFFFFF);
+
+            // set its position
+            pointLight.position.x = 10;
+            pointLight.position.y = 50;
+            pointLight.position.z = 130;
+
+            // add to the scene
+            // scene.add(pointLight);
+
+
+// NAV SETUP
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+
+// EVENT LISTENER SETUP
+            onWindowResize();
+            window.addEventListener( 'resize', onWindowResize, false );
+            // onMouseMove();
+            window.addEventListener( 'mousemove', onMouseMove, false );
+        }
+
+        function onWindowResize( event ) {
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            uniforms.u_resolution.value.x = renderer.domElement.width;
+            uniforms.u_resolution.value.y = renderer.domElement.height;
+        }
+
+        function onMouseMove( event ) {        
+            uniforms.u_mouse.value.x = event.pageX;
+            uniforms.u_mouse.value.y = event.pageY;
+        }
+
+        function animate() {
+            requestAnimationFrame( animate );
+            render();
+        }
+        
+        var frame = 0;
+        
+        function render() {
+
+            uniforms.u_time.value += 0.05;
+            uniforms.amplitude.value = Math.sin(frame);
+            frame += 0.01;
+
+            renderer.render( scene, camera );
+        }
+
+        // # Build gui with dat.gui
+        function buildGui(options, callback)
+        {
+            // create and initialize the UI
+            var gui = new dat.GUI({ height  : 4 * 32 - 1 });
+            // the callback notified on UI change
+            var change  = function(){
+                callback(options)
+            }
+            gui.add(options, 'displacement').name('Displacement').min(1).max(500)    .onChange(change);
+            // gui.add(options, 'duration').name('Duration (ms)').min(100).max(4000)   .onChange(change);
+            // gui.add(options, 'delay').name('Delay (ms)').min(0).max(1000)       .onChange(change);
+            // gui.add(options, 'easing').name('Easing Curve').options(easings)    .onChange(change);
+            // gui.add(options, 'changeColor').name('Change Color To Green');
+        }
+    </script>
+</body>
